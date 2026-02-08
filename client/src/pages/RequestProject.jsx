@@ -1,15 +1,212 @@
+import { useState } from "react";
 import Navbar from "../components/Navbar";
 import bgImage from "../assets/request-bg.png";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function RequestProject() {
+  /* ================= STATE ================= */
+  const [dragActive, setDragActive] = useState(false);
+
+const [form, setForm] = useState({
+  name: "",
+  email: "",
+  phone: "",
+  projectType: "",
+  deadline: "",
+  description: "",
+});
+
+const fieldsFilled = Object.values(form).filter(Boolean).length;
+const progress = Math.round((fieldsFilled / 6) * 100);
+
+
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(false);
+ const [errors, setErrors] = useState({
+  email: "",
+  phone: "",
+  deadline: "",
+});
+const handleDrop = (e) => {
+  e.preventDefault();
+  setDragActive(false);
+
+  const dropped = Array.from(e.dataTransfer.files);
+  setFiles(dropped);
+};
+
+const handleDrag = (e) => {
+  e.preventDefault();
+  setDragActive(true);
+};
+
+const handleDragLeave = () => {
+  setDragActive(false);
+};
+
+
+/* ================= VALIDATION ================= */
+
+const validatePhone = (phone) => {
+  const regex = /^[0-9]{10}$/;
+  if (!regex.test(phone)) {
+    return "Phone number must be 10 digits";
+  }
+  return "";
+};
+
+const validateDeadline = (date) => {
+  if (!date) return "Please select a deadline";
+
+  const today = new Date();
+  const selected = new Date(date);
+
+  today.setHours(0, 0, 0, 0);
+
+  if (selected < today) {
+    return "Deadline cannot be in the past";
+  }
+
+  return "";
+};
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!regex.test(email)) {
+    return "Enter a valid email address";
+  }
+  return "";
+};
+
+
+  /* ================= HANDLERS ================= */
+  const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  setForm({ ...form, [name]: value });
+if (name === "email") {
+  setErrors((prev) => ({
+    ...prev,
+    email: validateEmail(value),
+  }));
+}
+
+  // live validation
+  if (name === "phone") {
+    setErrors((prev) => ({
+      ...prev,
+      phone: validatePhone(value),
+    }));
+  }
+
+  if (name === "deadline") {
+    setErrors((prev) => ({
+      ...prev,
+      deadline: validateDeadline(value),
+    }));
+  }
+};
+
+const handleFileChange = (e) => {
+  const selectedFiles = Array.from(e.target.files);
+
+  const validFiles = selectedFiles.filter((file) => {
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`${file.name} is too large (max 5MB)`);
+      return false;
+    }
+    return true;
+  });
+
+  setFiles(validFiles);
+};
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const emailError = validateEmail(form.email);
+  const phoneError = validatePhone(form.phone);
+  const deadlineError = validateDeadline(form.deadline);
+
+  if (emailError || phoneError || deadlineError) {
+    setErrors({
+      email: emailError,
+      phone: phoneError,
+      deadline: deadlineError,
+    });
+    return;
+  }
+
+
+
+
+
+    setLoading(true);
+    setError(false);
+    setSuccess(false);
+    if (
+    !form.name ||
+    !form.email ||
+    !form.phone ||
+    !form.projectType ||
+    !form.deadline
+  ) {
+    setError(true);
+    setLoading(false);
+    return;
+  }
+
+    try {
+      const formData = new FormData();
+
+      formData.append("name", form.name);
+formData.append("email", form.email);
+formData.append("phone", form.phone);
+formData.append("projectType", form.projectType);
+formData.append("description", form.description);
+formData.append("deadline", form.deadline);
+
+
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const res = await fetch("http://localhost:5000/api/projects", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+  const data = await res.json();
+  console.error(data);
+  throw new Error(data.message || "Failed");
+}
+
+
+      setSuccess(true);
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        projectType: "",
+        deadline: "",
+        description: "",
+      });
+      setFiles([]);
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= UI ================= */
   return (
     <>
       <Navbar />
 
-      {/* SECTION */}
-      <section className="relative min-h-screen pt-20 pb-24 overflow-hidden">
-
-        {/* BACKGROUND IMAGE */}
+      <section className="relative min-h-screen pt-[120px] pb-24 overflow-hidden">
+        {/* BACKGROUND */}
         <div
           className="absolute inset-0 z-0"
           style={{
@@ -20,153 +217,111 @@ export default function RequestProject() {
           }}
         />
 
-        {/* WHITE OVERLAY FOR READABILITY */}
+        {/* OVERLAY */}
         <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm" />
 
         {/* CONTENT */}
         <div className="relative z-20 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20 items-start">
-
-          {/* LEFT CONTENT */}
-          <div className="animate-fade-in max-w-xl">
-
-            {/* HEADING */}
-            <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight">
+          {/* LEFT */}
+          <div className="max-w-xl">
+            <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6">
               Tell Us About <br />
               <span className="text-indigo-600">Your Project</span>
             </h1>
 
-            {/* DESCRIPTION */}
-            <p className="text-xl md:text-2xl text-gray-600 mb-10 leading-relaxed">
+            <p className="text-xl text-gray-600 mb-10">
               Share your project idea with us and we’ll help you turn it into a{" "}
               <span className="font-medium text-gray-700">
-                well-structured, high-quality academic solution
-              </span>{" "}
-              — built with clean code and complete guidance.
+                high-quality academic solution
+              </span>
+              .
             </p>
 
-            {/* FEATURES */}
-            <ul className="space-y-5 text-lg text-gray-700 mb-10">
-              <li className="flex items-start gap-3">
-                <span className="text-indigo-600 text-xl">✔</span>
-                Academic & real-world project support tailored to your syllabus
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-indigo-600 text-xl">✔</span>
-                Clean, readable code with proper architecture & best practices
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-indigo-600 text-xl">✔</span>
-                Complete explanation, demo support & viva preparation
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-indigo-600 text-xl">✔</span>
-                On-time delivery with documentation & revision support
-              </li>
+            <ul className="space-y-4 text-lg text-gray-700">
+              <li>✔ Academic & real-world project support</li>
+              <li>✔ Clean code & best practices</li>
+              <li>✔ Complete explanation & viva prep</li>
+              <li>✔ On-time delivery</li>
             </ul>
-
-            {/* RESPONSE TIME */}
-            <div className="text-lg text-gray-600 mb-8">
-              Average response time:{" "}
-              <span className="font-semibold text-gray-800">
-                1–2 hours
-              </span>
-            </div>
-
-            {/* HOW IT WORKS */}
-            <div className="mt-8">
-              <h3 className="text-xl font-semibold text-indigo-600 mb-4">
-                How this works
-              </h3>
-
-              <ol className="space-y-4 text-gray-700 text-base leading-relaxed">
-                <li>
-                  <span className="font-medium text-gray-900">1.</span>{" "}
-                  Submit your project request with requirements, deadline, and any reference files.
-                </li>
-                <li>
-                  <span className="font-medium text-gray-900">2.</span>{" "}
-                  Our team reviews your request and contacts you within 1–2 hours for confirmation.
-                </li>
-                <li>
-                  <span className="font-medium text-gray-900">3.</span>{" "}
-                  Development begins once details are finalized, with regular updates shared.
-                </li>
-                <li>
-                  <span className="font-medium text-gray-900">4.</span>{" "}
-                  You receive the completed project with documentation, explanation, and support.
-                </li>
-              </ol>
-            </div>
-
           </div>
 
-          {/* RIGHT FORM */}
-          <div className="animate-slide-up space-y-8 bg-white/80 p-8 rounded-2xl shadow-lg">
+          {/* FORM */}
+            <form 
+  onSubmit={handleSubmit}
+  className="space-y-7 bg-white/80 p-8 rounded-2xl shadow-lg"
+>
 
-            {/* FULL NAME */}
-            <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
-                Full Name
-              </label>
-              <p className="text-sm text-gray-500 mb-2">
-                Enter your full name as per records
-              </p>
-              <input
-                type="text"
-                placeholder="John Doe"
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-300
-                           text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+  {/* 🔥 FORM PROGRESS BAR — paste here */}
+  <div>
+    <div className="flex justify-between text-sm mb-1">
+      <span>Form Completion</span>
+      <span>{progress}%</span>
+    </div>
+
+    <div className="w-full h-2 bg-gray-200 rounded-full">
+      <div
+        className="h-2 bg-indigo-600 rounded-full transition-all"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  </div>
+
+  {/* NAME */}
+  
+
+            <Input
+              label="Full Name"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+            />
+            {errors.email && (
+  <p className="text-red-500 text-sm mt-1">
+    {errors.email}
+  </p>
+)}
 
             {/* EMAIL */}
-            <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
-                Email Address
-              </label>
-              <p className="text-sm text-gray-500 mb-2">
-                We’ll contact you using this email
-              </p>
-              <input
-                type="email"
-                placeholder="john@example.com"
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-300
-                           text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+            <Input
+              label="Email Address"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="john@example.com"
+            />
 
             {/* PHONE */}
-            <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
-                Phone / WhatsApp Number
-              </label>
-              <p className="text-sm text-gray-500 mb-2">
-                Preferred number for quick communication
-              </p>
-              <input
-                type="tel"
-                placeholder="+91 98765 43210"
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-300
-                           text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+            <Input
+              label="Phone / WhatsApp"
+              name="phone"
+              value={form.phone}
+              onChange={handleChange}
+              placeholder="+91 98765 43210"
+            />
+            {errors.phone && (
+  <p className="text-red-500 text-sm mt-1">
+    {errors.phone}
+  </p>
+)}
+
 
             {/* PROJECT TYPE */}
             <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
+              <label className="font-semibold text-indigo-600">
                 Project Type
               </label>
-              <p className="text-sm text-gray-500 mb-2">
-                Select the type of project you need
-              </p>
               <select
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-300
-                           text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                defaultValue=""
+                name="projectType"
+                value={form.projectType}
+                onChange={handleChange}
+                required
+                className="w-full mt-2 px-5 py-3 rounded-xl border"
               >
-                <option value="" disabled>Select project type</option>
+                <option value="">Select project type</option>
                 <option>Web Development</option>
-                <option>React / Node Project</option>
+                <option>React / Node</option>
                 <option>Flutter App</option>
                 <option>Mini Project</option>
                 <option>Final Year Project</option>
@@ -174,68 +329,134 @@ export default function RequestProject() {
             </div>
 
             {/* DEADLINE */}
-            <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
-                Expected Deadline
-              </label>
-              <p className="text-sm text-gray-500 mb-2">
-                When do you need the project completed?
-              </p>
-              <input
-                type="date"
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-300
-                           text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+           <Input
+  label="Expected Deadline"
+  name="deadline"
+  type="date"
+  value={form.deadline}
+  onChange={handleChange}
+  min={new Date().toISOString().split("T")[0]}
+/>
+
+            {errors.deadline && (
+  <p className="text-red-500 text-sm mt-1">
+    {errors.deadline}
+  </p>
+)}
+
 
             {/* DESCRIPTION */}
             <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
+              <label className="font-semibold text-indigo-600">
                 Project Description
               </label>
-              <p className="text-sm text-gray-500 mb-2">
-                Briefly explain your requirements
-              </p>
               <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
                 rows="4"
-                placeholder="Explain what the project is about..."
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-300
-                           text-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+                className="w-full mt-2 px-5 py-3 rounded-xl border resize-none"
               />
             </div>
 
-            {/* FILE UPLOAD */}
-            <div>
-              <label className="block text-base font-semibold text-indigo-600 mb-1">
-                Reference Files (optional)
-              </label>
-              <p className="text-sm text-gray-500 mb-3">
-                Upload documents or screenshots if available
-              </p>
+            {/* FILES */}
+            <div
+  onDrop={handleDrop}
+  onDragOver={handleDrag}
+  onDragLeave={handleDragLeave}
+  className={`border-2 border-dashed p-6 rounded-xl text-center transition
+    ${dragActive ? "border-indigo-500 bg-indigo-50" : "border-gray-300"}`}
+>
+  <p>Drag & drop files here or click to upload</p>
+{files.length > 0 && (
+  <ul className="mt-2 text-sm text-gray-600">
+    {files.map((f, i) => (
+      <li key={i}>📎 {f.name}</li>
+    ))}
+  </ul>
+)}
 
-              <label className="inline-block cursor-pointer px-6 py-3 rounded-xl
-                                 bg-indigo-50 text-indigo-600 font-medium
-                                 hover:bg-indigo-100 transition">
-                Upload Files
-                <input type="file" multiple className="hidden" />
-              </label>
-            </div>
+  <input
+    type="file"
+    multiple
+    onChange={handleFileChange}
+    className="hidden"
+    id="fileUpload"
+  />
+
+  <label
+    htmlFor="fileUpload"
+    className="cursor-pointer text-indigo-600 underline"
+  >
+    Browse Files
+  </label>
+</div>
+
+
+            {/* STATUS */}
+            {success && (
+              <p className="text-green-600 font-medium">
+                ✅ Project submitted successfully!
+              </p>
+            )}
+            {error && (
+              <p className="text-red-600 font-medium">
+                ❌ Submission failed. Try again.
+              </p>
+            )}
+
+            <AnimatePresence>
+  {success && (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+    >
+      <div className="bg-white p-8 rounded-xl shadow-xl text-center">
+        <h2 className="text-2xl font-bold text-green-600">
+          ✅ Project Submitted!
+        </h2>
+
+        <button
+          onClick={() => setSuccess(false)}
+          className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg"
+        >
+          Close
+        </button>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
 
             {/* SUBMIT */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                className="w-full px-10 py-4 bg-indigo-600 text-white
-                           text-lg font-semibold rounded-2xl shadow-lg
-                           hover:-translate-y-0.5 hover:shadow-xl transition-all"
-              >
-                Send Project Details
-              </button>
-            </div>
-
-          </div>
+            <button
+              disabled={loading}
+              className="w-full py-4 bg-indigo-600 text-white text-lg
+                         rounded-2xl hover:bg-indigo-700 transition"
+            >
+              {loading ? "Submitting..." : "Send Project Details"}
+            </button>
+          </form>
         </div>
       </section>
     </>
+  );
+}
+
+/* ================= REUSABLE INPUT ================= */
+function Input({ label, ...props }) {
+  return (
+    <div>
+      <label className="font-semibold text-indigo-600">{label}</label>
+      <input
+        {...props}
+        required
+        className="w-full mt-2 px-5 py-3 rounded-xl border"
+        
+      />
+    </div>
   );
 }

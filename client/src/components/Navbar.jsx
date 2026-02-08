@@ -26,42 +26,39 @@ export default function Navbar() {
 
   return (
     <>
-      {/* NAVBAR */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-xl shadow-md">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between min-h-[88px]">
+  <div className="max-w-7xl mx-auto px-6 h-[100px] flex items-center justify-between">
 
+    {/* LOGO */}
+    <Link
+      to="/"
+      onClick={() => setOpen(false)}
+      className="flex items-center h-full"
+    >
+      <img
+        src={logo}
+        alt="S&S Techworks"
+        className="h-full max-h-[550px] w-auto object-contain"
+      />
+    </Link>
 
-<Link
-  to="/"
-  onClick={() => handleNavClick("home")}
-  className="flex items-center gap-3"
->
-<img
-  src={logo}
-  alt="S&S Techworks"
-  className="h-16 w-auto transform scale-[1.8]"
-/>
+    {/* DESKTOP NAV */}
+    <div className="hidden md:flex items-center gap-2">
+      <NavItem to="/" label="Home" />
+      <NavItem to="/about" label="About" />
+      <NavItem to="/services" label="Services" />
+      <NavItem to="/portfolio" label="Portfolio" />
+      <NavItem to="/contact" label="Contact" />
+    </div>
 
-</Link>
-
-
-
-          {/* DESKTOP NAV */}
-          <div className="hidden md:flex items-center gap-2">
-            <NavItem to="/" label="Home" />
-            <NavItem to="/about" label="About" />
-            <NavItem to="/services" label="Services" />
-            <NavItem to="/portfolio" label="Portfolio" />
-            <NavItem to="/contact" label="Contact" />
-          </div>
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center gap-3">
-
             <Link
               to="/request"
-              className="hidden md:inline-block px-6 py-3 rounded-xl bg-indigo-600 text-white
-                         text-sm font-semibold shadow-md transition-all duration-300
+              className="hidden md:inline-block px-5 py-2.5 rounded-lg
+                         bg-indigo-600 text-white text-sm font-semibold
+                         shadow-md transition-all duration-300
                          hover:-translate-y-0.5 hover:shadow-xl"
             >
               Get Project
@@ -71,7 +68,7 @@ export default function Navbar() {
             <Link
               to="/admin"
               title="Admin Login"
-              className="w-11 h-11 flex items-center justify-center rounded-full
+              className="w-10 h-10 flex items-center justify-center rounded-full
                          border border-indigo-200 text-indigo-600
                          hover:bg-indigo-50 hover:-translate-y-0.5
                          transition-all duration-300"
@@ -79,7 +76,7 @@ export default function Navbar() {
               👤
             </Link>
 
-            {/* MOBILE MENU BUTTON */}
+            {/* MOBILE MENU */}
             <button
               onClick={() => setOpen(true)}
               className="md:hidden flex flex-col gap-1.5"
