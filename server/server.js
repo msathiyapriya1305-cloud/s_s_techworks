@@ -1,24 +1,27 @@
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-require("./utils/notificationScheduler");
 
-require("dotenv").config();
 
-const projectRoutes = require("./routes/projectRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const notificationRoutes = require("./routes/notificationRoutes");
+/* ================= APP INIT ================= */
 
 const app = express();
 
-/* ================= DATABASE FIRST ================= */
+/* ================= DATABASE ================= */
 
 mongoose
   .connect(
     process.env.MONGO_URI ||
       "mongodb://127.0.0.1:27017/project_requests"
   )
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(() => {
+    console.log("✅ MongoDB connected");
+
+    // ✅ Start scheduler ONLY after DB connects
+    require("./utils/notificationScheduler");
+  })
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err);
     process.exit(1);
@@ -29,6 +32,7 @@ mongoose
 app.use(
   cors({
     origin: "*",
+    credentials: true,
   })
 );
 
@@ -36,28 +40,39 @@ app.use(express.json());
 
 /* ================= STATIC FILES ================= */
 
-app.use("/uploads", express.static("uploads"));
+/*
+🔥 IMPORTANT:
+This fixes Windows/Linux upload preview issues
+*/
+
+const path = require("path");
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
 
 /* ================= ROUTES ================= */
 
-app.use("/api/admin", adminRoutes);
-app.use("/api/projects", projectRoutes);
-app.use("/api/notifications", notificationRoutes); // ✅ MOVED HERE
+app.use("/api/activity", require("./routes/activity"));
+app.use("/api/admin", require("./routes/adminRoutes"));
+app.use("/api/projects", require("./routes/projectRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 /* ================= HEALTH CHECK ================= */
 
 app.get("/", (req, res) => {
-  res.send("API is running");
+  res.json({ status: "API running ✅" });
 });
 
 /* ================= ERROR HANDLER ================= */
 
 app.use((err, req, res, next) => {
-  console.error("❌ Error:", err.message);
+  console.error("❌ Global Error:", err.stack);
 
   if (err.message === "Unsupported file type") {
     return res.status(400).json({
-      message: err.message,
+      message: "Unsupported file format",
     });
   }
 
@@ -71,5 +86,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
+  console.log(
+    `🚀 Backend running → http://localhost:${PORT}`
+  );
 });

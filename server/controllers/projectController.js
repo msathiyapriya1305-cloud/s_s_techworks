@@ -2,7 +2,7 @@ const Project = require("../models/Project");
 const Notification = require("../models/Notification");
 
 /* =====================================================
-   CREATE PROJECT (STUDENT)
+   CREATE PROJECT
 ===================================================== */
 exports.createRequest = async (req, res) => {
   try {
@@ -21,7 +21,10 @@ exports.createRequest = async (req, res) => {
       });
     }
 
-    const files = req.files ? req.files.map(f => f.path) : [];
+    const files = req.files
+  ? req.files.map((f) => "uploads/" + f.filename)
+  : [];
+
 
     const project = new Project({
       name,
@@ -34,37 +37,43 @@ exports.createRequest = async (req, res) => {
     });
 
     await project.save();
+
     await Notification.create({
-  title: "New Project Request",
-  name,
-  projectType,
-  deadline,
-});
-
-
+      message: `📩 New project submitted: "${projectType}" by ${name}`,
+      read: false,
+    });
 
     res.status(201).json(project);
+
   } catch (err) {
     console.error("CREATE ERROR:", err);
-    res.status(500).json({ message: "Failed to create project" });
+    res.status(500).json({
+      message: "Failed to create project",
+    });
   }
 };
 
 /* =====================================================
-   GET ALL PROJECTS (ADMIN)
+   GET ALL PROJECTS
 ===================================================== */
 exports.getAllRequests = async (req, res) => {
   try {
-    const projects = await Project.find().sort({ createdAt: -1 });
+    const projects = await Project.find().sort({
+      createdAt: -1,
+    });
+
     res.json(projects);
+
   } catch (err) {
     console.error("FETCH ERROR:", err);
-    res.status(500).json({ message: "Failed to fetch projects" });
+    res.status(500).json({
+      message: "Failed to fetch projects",
+    });
   }
 };
 
 /* =====================================================
-   UPDATE PROJECT STATUS
+   UPDATE STATUS
 ===================================================== */
 exports.updateStatus = async (req, res) => {
   try {
@@ -89,9 +98,12 @@ exports.updateStatus = async (req, res) => {
     }
 
     res.json(project);
+
   } catch (err) {
     console.error("STATUS ERROR:", err);
-    res.status(500).json({ message: "Failed to update status" });
+    res.status(500).json({
+      message: "Failed to update status",
+    });
   }
 };
 
@@ -100,7 +112,9 @@ exports.updateStatus = async (req, res) => {
 ===================================================== */
 exports.deleteProject = async (req, res) => {
   try {
-    const project = await Project.findByIdAndDelete(req.params.id);
+    const project = await Project.findByIdAndDelete(
+      req.params.id
+    );
 
     if (!project) {
       return res.status(404).json({
@@ -108,7 +122,10 @@ exports.deleteProject = async (req, res) => {
       });
     }
 
-    res.json({ message: "Project deleted successfully" });
+    res.json({
+      message: "Project deleted successfully",
+    });
+
   } catch (err) {
     console.error("DELETE PROJECT ERROR:", err);
     res.status(500).json({
@@ -122,9 +139,11 @@ exports.deleteProject = async (req, res) => {
 ===================================================== */
 exports.addTask = async (req, res) => {
   try {
-    const { title } = req.body;
+    let { title, assignedTo } = req.body;
 
-    if (!title || title.trim() === "") {
+    title = title?.trim();
+
+    if (!title) {
       return res.status(400).json({
         message: "Task title required",
       });
@@ -138,15 +157,19 @@ exports.addTask = async (req, res) => {
       });
     }
 
-    project.tasks.push({
-      title: title.trim(),
+    const newTask = {
+      title,
       completed: false,
+      assignedTo: assignedTo || null,
       files: [],
-    });
+    };
+
+    project.tasks.push(newTask);
 
     await project.save();
 
     res.json(project);
+
   } catch (err) {
     console.error("ADD TASK ERROR:", err);
     res.status(500).json({
@@ -178,11 +201,24 @@ exports.toggleTask = async (req, res) => {
       });
     }
 
+    const loggedUser = req.user?.email;
+
+    // ✅ Only assigned user can toggle
+    if (
+      task.assignedTo &&
+      task.assignedTo !== loggedUser
+    ) {
+      return res.status(403).json({
+        message: "You cannot modify this task",
+      });
+    }
+
     task.completed = !task.completed;
 
     await project.save();
 
     res.json(project);
+
   } catch (err) {
     console.error("TOGGLE TASK ERROR:", err);
     res.status(500).json({
@@ -214,11 +250,24 @@ exports.deleteTask = async (req, res) => {
       });
     }
 
+    const loggedUser = req.user?.email;
+
+    // ✅ Only assigned user can delete
+    if (
+      task.assignedTo &&
+      task.assignedTo !== loggedUser
+    ) {
+      return res.status(403).json({
+        message: "You cannot delete this task",
+      });
+    }
+
     task.deleteOne();
 
     await project.save();
 
     res.json(project);
+
   } catch (err) {
     console.error("DELETE TASK ERROR:", err);
     res.status(500).json({
@@ -256,11 +305,12 @@ exports.uploadTaskFile = async (req, res) => {
       });
     }
 
-    task.files.push(req.file.path);
+    task.files.push("uploads/" + req.file.filename);
 
     await project.save();
 
     res.json(project);
+
   } catch (err) {
     console.error("UPLOAD FILE ERROR:", err);
     res.status(500).json({

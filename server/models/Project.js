@@ -1,50 +1,34 @@
 const mongoose = require("mongoose");
 
-/* ================= TASK SUB-SCHEMA ================= */
-const taskSchema = new mongoose.Schema(
-  {
-    title: {
-      type: String,
-      required: true,
-    },
-    completed: {
-      type: Boolean,
-      default: false,
-    },
-    files: [
-      {
-        type: String,
-      },
-    ],
+/* ================= TASK SCHEMA ================= */
+
+const taskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
   },
-  { timestamps: true }
-);
+
+  completed: {
+    type: Boolean,
+    default: false,
+  },
+
+  assignedTo: {
+    type: String,
+    default: null,
+  },
+
+  files: [String],
+});
 
 /* ================= PROJECT SCHEMA ================= */
+
 const projectSchema = new mongoose.Schema(
   {
-    /* ===== STUDENT DETAILS ===== */
-    name: {
-      type: String,
-      required: true,
-    },
-
-    email: {
-      type: String,
-      required: true,
-    },
-
-    phone: {
-      type: String,
-      required: true,
-    },
-
-    /* ===== PROJECT DETAILS ===== */
-    projectType: {
-      type: String,
-      required: true,
-    },
-
+    name: String,
+    email: String,
+    phone: String,
+    projectType: String,
     description: String,
 
     status: {
@@ -53,47 +37,23 @@ const projectSchema = new mongoose.Schema(
       default: "Pending",
     },
 
-    /* ===== DEADLINE ===== */
-    deadline: {
-      type: Date,
-      required: true,
-    },
+    deadline: Date,
 
-    /* ===== ADMIN TASKS ===== */
-    tasks: {
-      type: [taskSchema],
-      default: [],
-    },
+    files: [String],
+    tasks: [taskSchema],
 
-    /* ===== AUTO PROGRESS ===== */
     progress: {
       type: Number,
       default: 0,
     },
 
-    /* ===== FILES ===== */
-    files: {
-      type: [String],
-      default: [],
-    },
+    isUnread: {
+  type: Boolean,
+  default: true,
+},
+
   },
   { timestamps: true }
 );
-
-/* ================= AUTO PROGRESS CALC ================= */
-projectSchema.pre("save", function () {
-  if (!this.tasks || this.tasks.length === 0) {
-    this.progress = 0;
-  } else {
-    const completedCount = this.tasks.filter(
-      (task) => task.completed
-    ).length;
-
-    this.progress = Math.round(
-      (completedCount / this.tasks.length) * 100
-    );
-  }
-});
-
 
 module.exports = mongoose.model("Project", projectSchema);

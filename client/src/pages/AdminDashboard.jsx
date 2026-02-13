@@ -1,20 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
 import KanbanBoard from "../components/kanbanBoard";
 import PieChartLive from "../components/PieChartLive";
-
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
 import { motion } from "framer-motion";
-
-
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+
 
   /* ================= STATE ================= */
   const [showNotifications, setShowNotifications] = useState(false);
@@ -32,6 +24,8 @@ const [statusFilter, setStatusFilter] = useState("All");
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  
+
 const fetchNotifications = async () => {
   try {
     const token = localStorage.getItem("adminToken");
@@ -52,44 +46,71 @@ const fetchNotifications = async () => {
   }
 };
 
-
 const fetchDashboardData = async () => {
-  const token = localStorage.getItem("adminToken");
+  try {
+    const token = localStorage.getItem("adminToken");
 
-  const statsRes = await fetch(
-    "http://localhost:5000/api/projects/stats",
-    {
-      headers: { Authorization: `Bearer ${token}` },
+    if (!token) {
+      console.warn("No token found");
+      return;
     }
-  );
 
-  const statsData = await statsRes.json();
-  setStats(statsData);
+    /* ---------- STATS ---------- */
+    const statsRes = await fetch(
+      "http://localhost:5000/api/projects/stats",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
 
-  const projRes = await fetch(
-    "http://localhost:5000/api/projects",
-    {
-      headers: { Authorization: `Bearer ${token}` },
+    if (statsRes.ok) {
+      const statsData = await statsRes.json();
+      setStats(statsData);
+    } else {
+      console.error("Stats failed:", statsRes.status);
     }
-  );
 
-  const projData = await projRes.json();
-  setProjects(projData);
+    /* ---------- PROJECTS ---------- */
+    const projRes = await fetch(
+      "http://localhost:5000/api/projects",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (!projRes.ok) {
+      console.error("Projects failed:", projRes.status);
+      return;
+    }
+
+    const projData = await projRes.json();
+
+    console.log("Projects:", projData); // 👈 DEBUG
+
+    if (Array.isArray(projData)) {
+      setProjects(projData);
+    } else {
+      setProjects([]);
+    }
+
+  } catch (err) {
+    console.error("Dashboard fetch error:", err);
+  }
 };
 
-const fetchStatsOnly = async () => {
+
+ /* ================= FETCH DATA ================= */
+useEffect(() => {
   const token = localStorage.getItem("adminToken");
 
-  const statsRes = await fetch(
-    "http://localhost:5000/api/projects/stats",
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
+  if (!token) {
+    navigate("/admin/login");
+    return;
+  }
 
-  const statsData = await statsRes.json();
-  setStats(statsData);
-};
+  fetchDashboardData();
+  fetchNotifications();
+}, [navigate]);
 
 useEffect(() => {
   const handleClickOutside = (e) => {
@@ -111,25 +132,19 @@ useEffect(() => {
   };
 }, []);
 
+const filteredProjects = Array.isArray(projects)
+  ? projects.filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.projectType.toLowerCase().includes(search.toLowerCase());
 
-useEffect(() => {
-  fetchDashboardData();
-  fetchNotifications();
-}, []);
+      const matchesStatus =
+        statusFilter === "All" || p.status === statusFilter;
 
+      return matchesSearch && matchesStatus;
+    })
+  : [];
 
- /* ================= FETCH DATA ================= */
-
-const filteredProjects = projects.filter((p) => {
-  const matchesSearch =
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.projectType.toLowerCase().includes(search.toLowerCase());
-
-  const matchesStatus =
-    statusFilter === "All" || p.status === statusFilter;
-
-  return matchesSearch && matchesStatus;
-});
 
 
 const DeadlineList = React.memo(function DeadlineList({ projects }) {
@@ -219,8 +234,10 @@ const deleteProject = async (id) => {
     }
   );
 
-  const data = await updated.json();
- fetchDashboardData();
+const data = await updated.json();
+setProjects(data);
+fetchDashboardData();
+
 
 };
 
@@ -275,26 +292,34 @@ return (
         >
 
           {/* ✅ Read / Unread checkbox */}
-          <input
-            type="checkbox"
-            checked={n.read}
-            onChange={() =>
-              setNotifications(prev =>
-                prev.map(x =>
-                  x._id === n._id
-                    ? { ...x, read: !x.read }
-                    : x
-                )
-              )
-            }
-            className="mt-1 cursor-pointer"
-          />
+       <input
+  type="checkbox"
+  checked={n.read}
+  onChange={async () => {
+    const token = localStorage.getItem("adminToken");
 
-          {/* ✅ Message */}
+    await fetch(
+      `http://localhost:5000/api/notifications/${n._id}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    fetchNotifications();
+  }}
+/>
+  {/* ✅ Message */}
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-800">
-              {n.message}
-            </p>
+        <p className="text-sm font-medium text-gray-800">
+  {n.title} — {n.projectType}
+</p>
+
+<p className="text-xs text-gray-600">
+  Customer: {n.name}
+</p>
 
             <p className="text-xs text-gray-500 mt-1">
               {new Date(n.createdAt).toLocaleString()}
@@ -311,9 +336,17 @@ return (
 
     </div>
 
-    <Link to="/" className="hover:underline font-medium">
-      Logout
-    </Link>
+    <button
+  onClick={() => {
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
+    navigate("/admin/login");
+  }}
+  className="hover:underline font-medium"
+>
+  Logout
+</button>
+
 
   </div>
 
@@ -421,6 +454,7 @@ return (
 </motion.main>
 
       {/* ================= PROJECT MODAL ================= */}
+      
       {selectedProject && (
        <ProjectModal
   project={selectedProject}
@@ -456,38 +490,6 @@ function StatCard({ title, value, color }) {
 }
 
 
-
-
-function PieStatusChart({ stats }) {
-  const data = [
-    { name: "Completed", value: stats.completed },
-    { name: "Pending", value: stats.pending },
-  ];
-const COLORS = ["#8b5cf6", "#fde047"];
-
-
-
-
-  return (
-    <div className="h-60 w-full">
-
-      <ResponsiveContainer>
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            outerRadius={90}
-            label
-          >
-            {data.map((_, i) => (
-              <Cell key={i} fill={COLORS[i]} />
-            ))}
-          </Pie>
-          <Tooltip />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
 }
 
 function ProjectsTable({ projects, onStatusChange, onSelect, onDelete }) {
@@ -570,11 +572,27 @@ function ProjectModal({ project, onClose, onUpdate }) {
 }, []);
 
   const [taskText, setTaskText] = useState("");
-  const [tasks, setTasks] = useState(project.tasks || []);
+  const currentUser =
+  JSON.parse(localStorage.getItem("adminUser"))?.email;
+
+  const [tasks, setTasks] = useState(
+  Array.isArray(project?.tasks) ? project.tasks : []
+);
+
   const [files, setFiles] = useState(project.files || []);
+  const [assignedTo, setAssignedTo] = useState("");
+
+
 
   /* ================= ADD TASK ================= */
   const addTask = async () => {
+  if (!taskText.trim()) return;
+
+  if (!assignedTo) {
+    alert("Please assign task");
+    return;
+  }
+
     if (!taskText.trim()) return;
 
     const token = localStorage.getItem("adminToken");
@@ -587,12 +605,24 @@ function ProjectModal({ project, onClose, onUpdate }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title: taskText }),
+       body: JSON.stringify({
+  title: taskText,
+  assignedTo
+}),
+
       }
     );
 
-    const updatedProject = await res.json();
-    setTasks(updatedProject.tasks);
+    if (!res.ok) {
+  const err = await res.json();
+  alert(err.message || "Task add failed");
+  return;
+}
+
+const updatedProject = await res.json();
+
+setTasks(updatedProject.tasks || []);
+
     onUpdate(updatedProject);
 
     setTaskText("");
@@ -613,7 +643,11 @@ function ProjectModal({ project, onClose, onUpdate }) {
     );
 
     const updatedProject = await res.json();
-    setTasks(updatedProject.tasks);
+  if (Array.isArray(updatedProject.tasks)) {
+  setTasks(updatedProject.tasks);
+}
+
+
     onUpdate(updatedProject);
   };
 
@@ -637,7 +671,10 @@ function ProjectModal({ project, onClose, onUpdate }) {
     }
 
     const updatedProject = await res.json();
-    setTasks(updatedProject.tasks);
+    if (Array.isArray(updatedProject.tasks)) {
+  setTasks(updatedProject.tasks);
+}
+
     onUpdate(updatedProject);
   };
 
@@ -650,11 +687,15 @@ function ProjectModal({ project, onClose, onUpdate }) {
 
     setFiles(prev => [...prev, ...newFiles]);
   };
-  const completedTasks =
-  (tasks || []).filter(t => t.completed).length;
+const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+const completedTasks =
+  safeTasks.filter(t => t.completed).length;
+
 
 const progress =
-  tasks.length === 0
+  !Array.isArray(tasks) || tasks.length === 0
+
     ? 0
     : Math.round((completedTasks / tasks.length) * 100);
 
@@ -718,19 +759,33 @@ const progress =
 
         {/* ADD TASK */}
         <div className="flex gap-2">
-          <input
-            value={taskText}
-            onChange={(e) => setTaskText(e.target.value)}
-            placeholder="Add new task..."
-            className="flex-1 border rounded-md px-3 py-2"
-          />
-          <button
-            onClick={addTask}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md"
-          >
-            Add
-          </button>
-        </div>
+
+  <input
+    value={taskText}
+    onChange={(e) => setTaskText(e.target.value)}
+    placeholder="Add new task..."
+    className="flex-1 border rounded-md px-3 py-2"
+  />
+
+  <select
+    value={assignedTo}
+    onChange={(e) => setAssignedTo(e.target.value)}
+    className="border rounded-md px-3 py-2"
+  >
+    <option value="">Assign</option>
+    <option value="msathiyapriya1305@gmail.com">Sathiya</option>
+    <option value="sakthimeena.gp03@gmail.com">Sakthi</option>
+  </select>
+
+  <button
+    onClick={addTask}
+    className="px-4 py-2 bg-indigo-600 text-white rounded-md"
+  >
+    Add
+  </button>
+
+</div>
+
 
         {/* TASK TABLE */}
         <table className="w-full text-sm border rounded-lg overflow-hidden">
@@ -738,12 +793,15 @@ const progress =
             <tr>
               <th className="p-2 w-12">Done</th>
               <th className="p-2">Task</th>
-              <th className="p-2 w-12"></th>
+<th className="p-2">Assigned</th>
+<th className="p-2 w-12"></th>
+
             </tr>
           </thead>
           
          <tbody>
-  {tasks.length === 0 ? (
+  {safeTasks.length === 0 ? (
+
     <tr>
       <td
         colSpan="3"
@@ -753,35 +811,37 @@ const progress =
       </td>
     </tr>
   ) : (
-    tasks.map((t) => (
+    safeTasks.map((t) => (
       <tr key={t._id} className="border-t">
-        <td className="p-2">
-          <input
-            type="checkbox"
-            checked={t.completed}
-            onChange={() => toggleTask(t._id)}
-          />
-        </td>
+  <td className="p-2">
+    <input
+      type="checkbox"
+      checked={t.completed}
+      disabled={
+  t.assignedTo && t.assignedTo !== currentUser
+}
 
-        <td
-          className={`p-2 ${
-            t.completed
-              ? "line-through text-gray-400"
-              : ""
-          }`}
-        >
-          {t.title}
-        </td>
+      onChange={() => toggleTask(t._id)}
+    />
+  </td>
 
-        <td className="p-2">
-          <button
-            onClick={() => deleteTask(t._id)}
-            className="text-red-500"
-          >
-            ✕
-          </button>
-        </td>
-      </tr>
+  <td className="p-2">
+    {t.title}
+  </td>
+
+  <td className="p-2 text-xs text-gray-600">
+    {t.assignedTo || "Unassigned"}
+  </td>
+
+  <td className="p-2">
+    <button
+      onClick={() => deleteTask(t._id)}
+      className="text-red-500"
+    >
+      ✕
+    </button>
+  </td>
+</tr>
     ))
   )}
 </tbody>
@@ -795,16 +855,32 @@ const progress =
   {project.files && project.files.length > 0 && (
   <div className="space-y-2 mt-2">
     {project.files.map((file, i) => {
-      const url = `http://localhost:5000/${file}`;
+      const cleanPath = file.replace(/^.*uploads[\\/]/, "uploads/");
+const url = `http://localhost:5000/${cleanPath}`;
+
 
       return (
         <div
           key={i}
           className="flex justify-between items-center bg-gray-100 p-2 rounded"
         >
-          <span className="truncate text-sm">
-            {file.split("/").pop()}
-          </span>
+          {url.match(/\.(jpg|jpeg|png)$/i) ? (
+  <img
+    src={url}
+    alt="preview"
+    className="w-12 h-12 object-cover rounded"
+  />
+) : (
+  <span className="text-xs text-gray-500">
+    📄 File
+  </span>
+)}
+
+
+<span className="truncate text-sm ml-2">
+  {file.split("/").pop()}
+</span>
+
 
           <a
             href={url}
@@ -832,26 +908,7 @@ const progress =
 
 
   {/* FILE PREVIEWS */}
-  <div className="grid grid-cols-3 gap-3 mt-3">
-    {files.map((f, i) => (
-      <div key={i} className="relative">
-        <img
-          src={f.preview}
-          alt="preview"
-          className="w-full h-24 object-cover rounded"
-        />
-
-        <button
-          onClick={() =>
-            setFiles(files.filter((_, idx) => idx !== i))
-          }
-          className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
-        >
-          ✕
-        </button>
-      </div>
-    ))}
-  </div>
+  
 </div>
          {/* MODAL FOOTER */}
 <div className="flex justify-end pt-4 border-t">
@@ -871,4 +928,3 @@ const progress =
   );
 }
 
-}

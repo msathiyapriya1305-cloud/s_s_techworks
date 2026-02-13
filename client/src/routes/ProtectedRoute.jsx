@@ -1,13 +1,19 @@
 import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("adminToken");
+const token = localStorage.getItem("adminToken");
 
-  // If token exists → allow access
-  if (token) {
-    return children;
-  }
+// ❌ No token or invalid token
+if (!token || token === "undefined" || token === "null") {
+localStorage.removeItem("adminToken");
+localStorage.removeItem("adminUser");
 
-  // Else → redirect to admin login
-  return <Navigate to="/admin" replace />;
+
+return <Navigate to="/admin/login" replace />;
+
+
+}
+
+// ✅ Valid token → allow dashboard
+return children;
 }

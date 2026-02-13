@@ -1,6 +1,7 @@
 const express = require("express");
 const upload = require("../middleware/upload");
 const auth = require("../middleware/authMiddleware");
+
 const Project = require("../models/Project");
 
 const {
@@ -17,13 +18,15 @@ const {
 const router = express.Router();
 
 /* =====================================================
-   PUBLIC – CREATE PROJECT REQUEST (STUDENT)
+   PUBLIC – CREATE PROJECT
 ===================================================== */
+
 router.post("/", upload.array("files", 5), createRequest);
 
 /* =====================================================
    ADMIN – DASHBOARD STATS
 ===================================================== */
+
 router.get("/stats", auth, async (req, res) => {
   try {
     const total = await Project.countDocuments();
@@ -36,13 +39,11 @@ router.get("/stats", auth, async (req, res) => {
       status: "Completed",
     });
 
-    // ✅ FIXED: deadline instead of due
     const overdue = await Project.countDocuments({
       status: "Pending",
       deadline: { $lt: new Date() },
     });
 
-    // ✅ FIXED: deadline instead of due
     const dueThisWeek = await Project.countDocuments({
       deadline: {
         $gte: new Date(),
@@ -59,8 +60,10 @@ router.get("/stats", auth, async (req, res) => {
       overdue,
       dueThisWeek,
     });
+
   } catch (err) {
-    console.error(err);
+    console.error("Stats error:", err);
+
     res.status(500).json({
       message: "Failed to load dashboard stats",
     });
@@ -70,17 +73,20 @@ router.get("/stats", auth, async (req, res) => {
 /* =====================================================
    ADMIN – UPCOMING DEADLINES
 ===================================================== */
+
 router.get("/deadlines", auth, async (req, res) => {
   try {
     const projects = await Project.find({
       status: { $ne: "Completed" },
     })
-      // ✅ FIXED: deadline instead of due
       .sort({ deadline: 1 })
       .limit(10);
 
     res.json(projects);
+
   } catch (err) {
+    console.error("Deadline error:", err);
+
     res.status(500).json({
       message: "Failed to fetch deadlines",
     });
@@ -88,39 +94,45 @@ router.get("/deadlines", auth, async (req, res) => {
 });
 
 /* =====================================================
-   ADMIN – GET ALL PROJECT REQUESTS
+   ADMIN – GET ALL PROJECTS
 ===================================================== */
+
 router.get("/", auth, getAllRequests);
 
 /* =====================================================
-   ADMIN – UPDATE PROJECT STATUS
+   ADMIN – UPDATE STATUS
 ===================================================== */
+
 router.patch("/:id", auth, updateStatus);
 
 /* =====================================================
    ADMIN – DELETE PROJECT
 ===================================================== */
-/* DELETE TASK */
+
 router.delete("/:id", auth, deleteProject);
+
+/* =====================================================
+   ADMIN – TASK ROUTES
+===================================================== */
+
+router.post("/:id/tasks", auth, addTask);
+
+router.patch(
+  "/:projectId/tasks/:taskId",
+  auth,
+  toggleTask
+);
+
 router.delete(
   "/:projectId/tasks/:taskId",
   auth,
   deleteTask
 );
 
-
-
 /* =====================================================
-   ADMIN – TASK MANAGEMENT
+   TASK FILE UPLOAD
 ===================================================== */
 
-/* ADD TASK */
-router.post("/:id/tasks", auth, addTask);
-
-/* TOGGLE TASK */
-router.patch("/:projectId/tasks/:taskId", auth, toggleTask);
-
-/* UPLOAD FILE FOR TASK */
 router.post(
   "/:projectId/tasks/:taskId/files",
   auth,

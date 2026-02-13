@@ -2,15 +2,16 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-/* ================= ENSURE UPLOAD FOLDER EXISTS ================= */
+/* ================= UPLOAD FOLDER ================= */
 
-const uploadDir = "uploads/";
+// Absolute safe path
+const uploadDir = path.join(__dirname, "..", "uploads");
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-/* ================= STORAGE CONFIG ================= */
+/* ================= STORAGE ================= */
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -28,23 +29,20 @@ const storage = multer.diskStorage({
   },
 });
 
-/* ================= FILE FILTER (SECURITY) ================= */
+/* ================= FILE FILTER ================= */
+
+const allowedMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "application/zip",
+];
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".pdf",
-    ".doc",
-    ".docx",
-    ".txt",
-    ".zip",
-  ];
-
-  const ext = path.extname(file.originalname).toLowerCase();
-
-  if (!allowedTypes.includes(ext)) {
+  if (!allowedMimeTypes.includes(file.mimetype)) {
     return cb(
       new Error("Unsupported file type"),
       false
@@ -61,7 +59,7 @@ const upload = multer({
   fileFilter,
 
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB per file
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 });
 

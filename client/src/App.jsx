@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Home from "./pages/Home";
 import About from "./pages/About";
@@ -13,34 +13,38 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
+return ( <BrowserRouter> <Routes>
 
-        {/* PUBLIC ROUTES */}
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/portfolio" element={<Portfolio />} />
-        <Route path="/contact" element={<Contact />} />
+    {/* PUBLIC ROUTES */}
+    <Route path="/" element={<Home />} />
+    <Route path="/about" element={<About />} />
+    <Route path="/services" element={<Services />} />
+    <Route path="/portfolio" element={<Portfolio />} />
+    <Route path="/contact" element={<Contact />} />
+    <Route path="/request" element={<RequestProject />} />
 
-        <Route path="/request" element={<RequestProject />} />
-        <Route path="/admin" element={<AdminLogin />} />
+    {/* ✅ ADMIN SHORTCUT */}
+    <Route path="/admin" element={<Navigate to="/admin/login" />} />
 
-        {/* PROTECTED ROUTES */}
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ProtectedRoute>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
+    {/* ADMIN LOGIN */}
+    <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* FALLBACK */}
-        <Route path="*" element={<h1>Page Not Found</h1>} />
+    {/* PROTECTED DASHBOARD */}
+    <Route
+      path="/admin/dashboard"
+      element={
+        <ProtectedRoute>
+          <AdminDashboard />
+        </ProtectedRoute>
+      }
+    />
 
-      </Routes>
-    </BrowserRouter>
-  );
+    {/* FALLBACK */}
+    <Route path="*" element={<h1>Page Not Found</h1>} />
+
+  </Routes>
+</BrowserRouter>
+
+
+);
 }

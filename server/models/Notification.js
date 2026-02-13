@@ -1,21 +1,29 @@
 const mongoose = require("mongoose");
 
-const notificationSchema = new mongoose.Schema({
-  title: String,
-  name: String,
-  projectType: String,
-  deadline: Date,
+const notificationSchema = new mongoose.Schema(
+  {
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  read: {
-    type: Boolean,
-    default: false,
-  },
+    type: {
+      type: String,
+      enum: ["project", "task", "system"],
+      default: "system",
+    },
 
-  createdAt: {
-    type: Date,
-    default: Date.now,
+    read: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
-});
+  {
+    timestamps: true, // ✅ auto createdAt & updatedAt
+  }
+);
 
 module.exports = mongoose.model(
   "Notification",
