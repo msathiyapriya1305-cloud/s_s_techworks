@@ -4,7 +4,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-
 /* ================= APP INIT ================= */
 
 const app = express();
